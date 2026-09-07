@@ -7,6 +7,7 @@ const BoardCoordsRef = preload("res://scripts/domain/BoardCoords.gd")
 const StateHasherRef = preload("res://scripts/rules/StateHasher.gd")
 const GameSessionRef = preload("res://scripts/autoload/GameSession.gd")
 const SaveServiceRef = preload("res://scripts/persistence/SaveService.gd")
+const MainScene = preload("res://scenes/app/Main.tscn")
 
 var _passed := 0
 var _failed := 0
@@ -40,6 +41,8 @@ func _run_all() -> void:
 	_run("test_temporal_move_rejects_historical_allied_king_conflict", Callable(self, "test_temporal_move_rejects_historical_allied_king_conflict"))
 	_run("test_undo_restores_confirmed_rewind", Callable(self, "test_undo_restores_confirmed_rewind"))
 	_run("test_profile_save_round_trip", Callable(self, "test_profile_save_round_trip"))
+	_run("test_ui_scene_constructs_and_previews_rewind", Callable(self, "test_ui_scene_constructs_and_previews_rewind"))
+	_run("test_ui_rewind_confirmation_and_escape", Callable(self, "test_ui_rewind_confirmation_and_escape"))
 	print("TEST SUMMARY: %d passed, %d failed" % [_passed, _failed])
 	quit(0 if _failed == 0 else 1)
 
@@ -559,3 +562,53 @@ func test_profile_save_round_trip() -> String:
 func _remove_if_present(path: String) -> void:
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
+
+
+func test_ui_scene_constructs_and_previews_rewind() -> String:
+	var main = MainScene.instantiate()
+	root.add_child(main)
+	if main.board == null or main.timeline == null or main.rewind_bar == null:
+		main.free()
+		return "main scene did not build its interactive surfaces"
+	if main._session().level == null or main._session().level.id != "chapter_01_level_01":
+		main.free()
+		return "main scene did not load the first puzzle"
+	main._open_rewind_preview(0)
+	if not main.rewind_bar.visible or main.board.interaction_enabled:
+		main.free()
+		return "rewind preview did not show its confirmation state"
+	main._cancel_rewind_preview()
+	main.free()
+	return ""
+
+
+func test_ui_rewind_confirmation_and_escape() -> String:
+	var main = MainScene.instantiate()
+	root.add_child(main)
+	main._open_rewind_preview(0)
+	var escape := InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.pressed = true
+	main._unhandled_key_input(escape)
+	if main.rewind_bar.visible or main._pending_rewind_turn >= 0 or not main.board.interaction_enabled:
+		main.free()
+		return "Escape did not cancel the disabled-board rewind preview"
+	main._open_rewind_preview(0)
+	main._confirm_rewind()
+	if main._pending_rewind_turn >= 0 or main.rewind_bar.visible or main.timeline.preview_turn >= 0:
+		main.free()
+		return "confirmed rewind left the UI in preview state"
+	if not main.board.interaction_enabled or main._session().state.focus_turn != 0:
+		main.free()
+		return "confirmed rewind did not restore interactive T00 board state"
+	if main.timeline._is_archived(0) or not main.timeline._is_archived(1):
+		main.free()
+		return "archived timeline nodes do not start after the archived event"
+	main.board.selected_piece_id = "white_rook_a1"
+	main.board.set_selected_moves([BoardCoordsRef.from_algebraic("a8")])
+	main._retry_level()
+	if not main.board.get_selected_piece_id().is_empty() or not main.board._selected_moves.is_empty():
+		main.free()
+		return "board kept stale selection targets after a world reset"
+	main.free()
+	return ""

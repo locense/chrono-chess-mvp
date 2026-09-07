@@ -13,8 +13,17 @@ or UI layouts are included.
 
 ## Start
 
-Open `project.godot` in Godot 4.7.2 and run the project. The playable scene is
-added in the UI checkpoint.
+Open `project.godot` in Godot 4.7.2 and run the project. The main scene is a
+1280x720 desktop puzzle screen. It supports mouse selection, highlighted legal
+destinations, `R` for rewind, `Z` for undo, and `Escape` to cancel a rewind
+preview.
+
+From this project directory, the installed GUI executable can also start the
+game directly:
+
+```powershell
+& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64.exe' --path .
+```
 
 ## Test
 
@@ -43,7 +52,25 @@ added in the UI checkpoint.
 - Session-level undo for confirmed moves and rewinds, using deep state copies.
 - Atomic local completion profile writes with validated temporary files and a
   backup fallback.
+- A playable Chapter 1 desktop UI: level switcher, custom-drawn board and
+  pieces, inspector, undo/retry controls, rewind preview/confirmation, result
+  dialog, and fixed-width timeline nodes with fate-lock and archive markers.
+- Original geometric placeholder art only, including the chronal mark and
+  programmatic piece silhouettes. No external game assets, writing, or levels
+  are used.
+- UI regression coverage for rewind confirmation, Escape cancellation, reset
+  selection clearing, and archived timeline rendering.
+
+## Local Save
+
+Completed levels are stored atomically in Godot's local `user://` storage as
+`chrono_chess_profile.json`. The game keeps the best white-action count for
+each completed Chapter 1 puzzle.
 
 ## Not Yet Implemented
 
-- Board interaction, timeline UI, and the desktop UI.
+- A verified standalone Windows `.exe` export. This machine has the Godot
+  editor but not the matching 4.7.2 export templates yet.
+- Additional chapters, authored temporal-rook/overlap puzzle levels, audio,
+  accessibility settings beyond keyboard operation, localization, or online
+  play.
