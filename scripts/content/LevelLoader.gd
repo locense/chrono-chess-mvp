@@ -32,7 +32,8 @@ func _parse_definition(data: Dictionary, source: String) -> LevelDefinition:
 	level.start_focus_turn = int(data.get("start_focus_turn", 0))
 	level.chronal_energy = int(data.get("chronal_energy", 0))
 	level.white_action_budget = int(data.get("white_action_budget", 0))
-	level.rewind_targets = data.get("rewind_targets", []).duplicate()
+	for target_turn in data.get("rewind_targets", []):
+		level.rewind_targets.append(int(target_turn))
 	level.scripts = data.get("scripts", []).duplicate(true)
 	level.victory = data.get("victory", {}).duplicate(true)
 	level.tutorial = data.get("tutorial", {}).duplicate(true)

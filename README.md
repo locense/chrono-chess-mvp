@@ -26,10 +26,13 @@ added in the UI checkpoint.
 
 - Project configuration and stable piece/event data contracts.
 - JSON definitions for Chapter 1, Levels 1 and 2.
-- Level-data validation test entry point.
+- Deterministic ordinary-event replay and stable absolute-turn snapshots.
+- Ordinary king, rook, knight, and bishop movement for puzzle capture rules.
+- Single-timeline rewind with persistent energy and archived future events.
+- Level 1 load, rewind, win, and direct-failure rule tests.
 
 ## Not Yet Implemented
 
-- Rule resolution, board interaction, timeline, rewind, fate locks, temporal
-  rook, overlap handling, undo, saves, and the desktop UI.
-
+- Fate locks and the Level 2 deterministic black reply.
+- Temporal rook and overlap handling.
+- Board interaction, timeline UI, undo, saves, and the desktop UI.
