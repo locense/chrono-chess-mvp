@@ -20,6 +20,12 @@ func _init() -> void:
 	_run("test_level_02_fate_lock_removes_repositioned_knight", Callable(self, "test_level_02_fate_lock_removes_repositioned_knight"))
 	_run("test_level_02_solution_wins", Callable(self, "test_level_02_solution_wins"))
 	_run("test_replay_hash_is_deterministic", Callable(self, "test_replay_hash_is_deterministic"))
+	_run("test_temporal_rook_persists_through_rewind", Callable(self, "test_temporal_rook_persists_through_rewind"))
+	_run("test_reality_overlap_freezes_and_blocks_entry", Callable(self, "test_reality_overlap_freezes_and_blocks_entry"))
+	_run("test_temporal_enemy_king_overlap_wins", Callable(self, "test_temporal_enemy_king_overlap_wins"))
+	_run("test_temporal_allied_king_overlap_is_rejected", Callable(self, "test_temporal_allied_king_overlap_is_rejected"))
+	_run("test_temporal_capture_removes_projection_without_fate_lock", Callable(self, "test_temporal_capture_removes_projection_without_fate_lock"))
+	_run("test_overlap_releases_after_fate_echo_vanishes", Callable(self, "test_overlap_releases_after_fate_echo_vanishes"))
 	print("TEST SUMMARY: %d passed, %d failed" % [_passed, _failed])
 	quit(0 if _failed == 0 else 1)
 
@@ -205,3 +211,152 @@ func _solve_level_two_hash(level) -> String:
 	state = reducer.try_move(level, state, "white_knight_c3", BoardCoordsRef.from_algebraic("a4"))["state"]
 	state = reducer.try_move(level, state, "white_rook_a1", BoardCoordsRef.from_algebraic("a8"))["state"]
 	return hasher.hash_world(state, resolver.resolve(level, state))
+
+
+func test_temporal_rook_persists_through_rewind() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	var reducer = GameReducerRef.new()
+	var resolver = WorldResolverRef.new()
+	var state = reducer.create_initial_state(level)
+	var moved: Dictionary = reducer.try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("a4"))
+	if not str(moved["error"]).is_empty():
+		return "a clear temporal rook move was rejected"
+	var rewound: Dictionary = reducer.try_rewind(level, moved["state"], 0)
+	if not str(rewound["error"]).is_empty():
+		return "temporal move must remain rewindable by the ordinary timeline"
+	var view = resolver.resolve(level, rewound["state"])
+	var rook = view.pieces_by_id.get("temporal_rook_a1", null)
+	if rook == null or rook.square != BoardCoordsRef.from_algebraic("a4"):
+		return "temporal rook position must not be restored by rewind"
+	return ""
+
+
+func test_reality_overlap_freezes_and_blocks_entry() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_knight_b2", &"white", &"knight", "b2"),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_bishop_a4", &"black", &"bishop", "a4"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	var reducer = GameReducerRef.new()
+	var state = reducer.create_initial_state(level)
+	var result: Dictionary = reducer.try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("a4"))
+	if not str(result["error"]).is_empty():
+		return "temporal rook should be able to create an overlap"
+	var view = result["view"]
+	if not view.overlaps.has("a4") or not view.frozen_piece_ids.has("black_bishop_a4"):
+		return "temporal/ordinary co-occupancy must create a frozen overlap"
+	if not view.legal_moves_by_piece["black_bishop_a4"].is_empty():
+		return "the ordinary piece inside an overlap must be frozen"
+	if view.legal_moves_by_piece["white_knight_b2"].has(BoardCoordsRef.from_algebraic("a4")):
+		return "ordinary pieces must not enter an overlap square"
+	return ""
+
+
+func test_temporal_enemy_king_overlap_wins() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_king_a8", &"black", &"king", "a8"),
+	])
+	var state = GameReducerRef.new().create_initial_state(level)
+	var result: Dictionary = GameReducerRef.new().try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("a8"))
+	if not str(result["error"]).is_empty() or result["view"].status != &"won":
+		return "temporal projection onto the enemy king must win immediately"
+	return ""
+
+
+func test_temporal_allied_king_overlap_is_rejected() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_king_a4", &"white", &"king", "a4"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	var state = GameReducerRef.new().create_initial_state(level)
+	var result: Dictionary = GameReducerRef.new().try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("a4"))
+	if str(result["error"]).is_empty():
+		return "a temporal move onto the allied king must be rejected before mutation"
+	if state.focus_turn != 0 or state.temporal_states["temporal_rook_a1"].square != BoardCoordsRef.from_algebraic("a1"):
+		return "a rejected temporal move must not mutate its source state"
+	return ""
+
+
+func test_temporal_capture_removes_projection_without_fate_lock() -> String:
+	var level = _temporal_level([
+		_piece("white_rook_a1", &"white", &"rook", "a1"),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("temporal_rook_a4", &"black", &"rook", "a4", true),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	var reducer = GameReducerRef.new()
+	var state = reducer.create_initial_state(level)
+	var result: Dictionary = reducer.try_move(level, state, "white_rook_a1", BoardCoordsRef.from_algebraic("a4"))
+	if not str(result["error"]).is_empty():
+		return "ordinary rook should be able to capture an exposed temporal rook"
+	if result["state"].temporal_states["temporal_rook_a4"].alive:
+		return "capturing a temporal piece must remove its global projection"
+	if result["state"].fate_locks.has("temporal_rook_a4"):
+		return "temporal captures must not create ordinary fate locks"
+	if result["view"].pieces_by_id.has("temporal_rook_a4"):
+		return "dead temporal rook must not appear in the resolved world"
+	return ""
+
+
+func test_overlap_releases_after_fate_echo_vanishes() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a4", &"white", &"rook", "a4", true),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_bishop_a4", &"black", &"bishop", "a4"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	level.rules["fate_locks_enabled"] = true
+	var state = GameReducerRef.new().create_initial_state(level)
+	var lock := FateLock.new()
+	lock.piece_id = "black_bishop_a4"
+	lock.death_turn = 0
+	lock.source_event_id = "fixture"
+	state.fate_locks[lock.piece_id] = lock
+	var resolver = WorldResolverRef.new()
+	var before = resolver.resolve(level, state)
+	if not before.overlaps.has("a4") or not before.pieces_by_id["black_bishop_a4"].is_fate_echo:
+		return "fate echo should maintain the overlap before its death turn passes"
+	state.focus_turn = 1
+	var after = resolver.resolve(level, state)
+	if after.overlaps.has("a4") or after.pieces_by_id.has("black_bishop_a4"):
+		return "overlap must release when the fate echo vanishes"
+	return ""
+
+
+func _temporal_level(pieces: Array) -> LevelDefinition:
+	var level := LevelDefinition.new()
+	level.id = "temporal_rules_fixture"
+	level.initial_pieces = pieces
+	level.initial_side = &"white"
+	level.start_focus_turn = 0
+	level.chronal_energy = 1
+	level.white_action_budget = 2
+	level.rewind_targets = [0]
+	level.victory = {"target_king_id": "black_king_a8", "turn_window": [0, 8]}
+	level.rules = {
+		"puzzle_capture_king": true,
+		"fate_locks_enabled": false,
+		"temporal_enabled": true,
+		"overlap_enabled": true,
+		"rewind_cost": 1,
+	}
+	return level
+
+
+func _piece(piece_id: String, side: StringName, role: StringName, square: String, is_temporal := false) -> PieceState:
+	var piece := PieceState.new()
+	piece.piece_id = piece_id
+	piece.side = side
+	piece.role = role
+	piece.square = BoardCoordsRef.from_algebraic(square)
+	piece.is_temporal = is_temporal
+	return piece

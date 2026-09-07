@@ -3,6 +3,7 @@ extends RefCounted
 
 const MoveValidatorRef = preload("res://scripts/rules/MoveValidator.gd")
 const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
+const TemporalResolverRef = preload("res://scripts/rules/TemporalResolver.gd")
 
 
 func resolve(level, state: GameState) -> WorldView:
@@ -26,8 +27,14 @@ func resolve(level, state: GameState) -> WorldView:
 		var piece = ordinary_pieces[piece_id]
 		if piece.alive:
 			view.add_piece(piece)
-	view.status = _derive_status(level, state)
-	view.winning_reason = _winning_reason(level, state, view.status)
+	var projection: Dictionary = TemporalResolverRef.new().project(level, state, view)
+	view.frozen_piece_ids = projection["frozen_piece_ids"]
+	view.overlaps = projection["overlaps"]
+	view.explanations.append_array(projection["explanations"])
+	for temporal_piece in projection["temporal_pieces"]:
+		view.add_piece(temporal_piece)
+	view.status = _derive_status(level, state, bool(projection["temporal_win"]))
+	view.winning_reason = _winning_reason(level, state, view.status, bool(projection["temporal_win"]))
 	if view.status == &"playing":
 		var validator = MoveValidatorRef.new()
 		for piece_id in view.pieces_by_id:
@@ -48,8 +55,10 @@ func _apply_event(pieces: Dictionary, event) -> void:
 			captured.alive = false
 
 
-func _derive_status(level, state: GameState) -> StringName:
+func _derive_status(level, state: GameState, temporal_win := false) -> StringName:
 	if state.status == &"won":
+		return &"won"
+	if temporal_win:
 		return &"won"
 	if _captured_target_in_window(level, state):
 		return &"won"
@@ -73,7 +82,9 @@ func _captured_target_in_window(level, state: GameState) -> bool:
 	return false
 
 
-func _winning_reason(level, state: GameState, status: StringName) -> String:
+func _winning_reason(level, state: GameState, status: StringName, temporal_win := false) -> String:
+	if temporal_win:
+		return "Temporal projection annihilated the target king."
 	if status == &"won":
 		return "Target king captured in the required turn window."
 	if status == &"lost" and state.white_actions_used >= level.white_action_budget:

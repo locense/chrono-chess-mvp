@@ -34,8 +34,11 @@ added in the UI checkpoint.
 - Synchronous deterministic black script support for Level 2.
 - Level 2 solution and alternate-path fate-lock tests.
 - Stable SHA-256 world-state hashing for deterministic replay checks.
+- One temporal rook rule layer, stored outside ordinary timeline snapshots.
+- Reality overlaps that freeze ordinary pieces and reject normal entry.
+- Temporal annihilation against an enemy king, allied-king rejection, and
+  temporal capture removal tests.
 
 ## Not Yet Implemented
 
-- Temporal rook and overlap handling.
 - Board interaction, timeline UI, undo, saves, and the desktop UI.

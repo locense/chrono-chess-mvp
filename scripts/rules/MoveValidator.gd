@@ -34,11 +34,13 @@ func _sliding_moves(world, actor: PieceState, directions: Array) -> Array:
 		var direction: Vector2i = direction_value
 		var target: Vector2i = actor.square + direction
 		while BoardCoordsRef.is_on_board(target):
+			if world.overlaps.has(BoardCoordsRef.key(target)):
+				break
 			var blocker = world.get_primary_piece_at(target)
 			if blocker == null:
 				moves.append(target)
 			else:
-				if blocker.side != actor.side and not blocker.is_temporal:
+				if blocker.side != actor.side:
 					moves.append(target)
 				break
 			target += direction
@@ -52,7 +54,9 @@ func _jump_moves(world, actor: PieceState, deltas: Array) -> Array:
 		var target: Vector2i = actor.square + delta
 		if not BoardCoordsRef.is_on_board(target):
 			continue
+		if world.overlaps.has(BoardCoordsRef.key(target)):
+			continue
 		var blocker = world.get_primary_piece_at(target)
-		if blocker == null or (blocker.side != actor.side and not blocker.is_temporal):
+		if blocker == null or blocker.side != actor.side:
 			moves.append(target)
 	return moves

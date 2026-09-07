@@ -5,6 +5,7 @@ const TimelineServiceRef = preload("res://scripts/rules/TimelineService.gd")
 const WorldResolverRef = preload("res://scripts/rules/WorldResolver.gd")
 const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
 const ScriptRunnerRef = preload("res://scripts/rules/ScriptRunner.gd")
+const TemporalResolverRef = preload("res://scripts/rules/TemporalResolver.gd")
 
 
 func create_initial_state(level) -> GameState:
@@ -37,8 +38,10 @@ func try_move(level, state: GameState, actor_id: String, destination: Vector2i) 
 	event.to_square = destination
 	var target = view.get_primary_piece_at(destination)
 	if target != null:
-		event.kind = &"capture"
+		event.kind = &"temporal_capture" if target.is_temporal else &"capture"
 		event.captured_piece_id = target.piece_id
+		if target.is_temporal:
+			next.temporal_states[target.piece_id].alive = false
 	next.current_events.append(event)
 	next.next_event_serial += 1
 	if event.is_capture():
@@ -51,5 +54,29 @@ func try_move(level, state: GameState, actor_id: String, destination: Vector2i) 
 	if actor.side == &"white" and next_view.status == &"playing":
 		next = ScriptRunnerRef.new().apply_after_white_turn(level, next, event.absolute_turn)
 		next_view = resolver.resolve(level, next)
+	next.status = next_view.status
+	return {"state": next, "view": next_view, "error": ""}
+
+
+func try_temporal_move(level, state: GameState, temporal_id: String, destination: Vector2i) -> Dictionary:
+	var resolver = WorldResolverRef.new()
+	var view = resolver.resolve(level, state)
+	if not level.temporal_enabled() or view.status != &"playing":
+		return {"state": state, "view": view, "error": "Temporal movement is unavailable."}
+	if state.active_side != &"white":
+		return {"state": state, "view": view, "error": "It is not the player's turn."}
+	var temporal = state.temporal_states.get(temporal_id, null)
+	if temporal == null or temporal.side != &"white" or not temporal.alive:
+		return {"state": state, "view": view, "error": "That temporal piece cannot act now."}
+	var legal_moves: Array = TemporalResolverRef.new().legal_moves(view, temporal)
+	if not legal_moves.has(destination):
+		return {"state": state, "view": view, "error": "That temporal destination is illegal."}
+	var next := state.deep_copy()
+	next.temporal_states[temporal_id].square = destination
+	next.temporal_states[temporal_id].changed_at_absolute_turn = state.focus_turn
+	next.focus_turn += 1
+	next.active_side = &"black"
+	next.white_actions_used += 1
+	var next_view = resolver.resolve(level, next)
 	next.status = next_view.status
 	return {"state": next, "view": next_view, "error": ""}

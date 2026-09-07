@@ -12,6 +12,8 @@ func rebuild_from_events(level, state: GameState) -> void:
 func register_capture(level, state: GameState, event) -> void:
 	if not level.fate_locks_enabled() or not event.is_capture() or event.captured_piece_id.is_empty():
 		return
+	if state.temporal_states.has(event.captured_piece_id):
+		return
 	if state.fate_locks.has(event.captured_piece_id):
 		return
 	var lock := FateLock.new()
@@ -40,4 +42,3 @@ func apply_to_pieces(level, state: GameState, pieces: Dictionary) -> Array:
 			piece.alive = false
 			explanations.append("Fate resolved at T%02d: %s vanished." % [lock.death_turn, piece_id])
 	return explanations
-

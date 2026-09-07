@@ -2,6 +2,7 @@ class_name TimelineService
 extends RefCounted
 
 const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
+const TemporalStateRef = preload("res://scripts/domain/TemporalState.gd")
 
 
 func create_initial_state(level) -> GameState:
@@ -12,6 +13,9 @@ func create_initial_state(level) -> GameState:
 	state.chronal_energy = level.chronal_energy
 	state.white_actions_used = 0
 	state.status = &"playing"
+	for piece in level.initial_pieces:
+		if piece.is_temporal:
+			state.temporal_states[piece.piece_id] = TemporalStateRef.from_piece(piece, 0)
 	for event in level.preplayed_events:
 		state.current_events.append(event.copy_event())
 	FateResolverRef.new().rebuild_from_events(level, state)

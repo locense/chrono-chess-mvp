@@ -13,6 +13,11 @@ func hash_world(state: GameState, view: WorldView) -> String:
 	lock_ids.sort()
 	for piece_id in lock_ids:
 		locks.append(state.fate_locks[piece_id].to_dict())
+	var temporal_states: Array = []
+	var temporal_ids: Array = state.temporal_states.keys()
+	temporal_ids.sort()
+	for piece_id in temporal_ids:
+		temporal_states.append(state.temporal_states[piece_id].to_dict())
 	var events: Array = []
 	for event in state.current_events:
 		events.append(event.to_dict())
@@ -23,6 +28,8 @@ func hash_world(state: GameState, view: WorldView) -> String:
 		"status": String(view.status),
 		"pieces": pieces,
 		"fate_locks": locks,
+		"temporal_states": temporal_states,
+		"overlaps": view.overlaps,
 		"events": events,
 	}
 	var canonical := JSON.stringify(payload, "", true)
@@ -30,4 +37,3 @@ func hash_world(state: GameState, view: WorldView) -> String:
 	context.start(HashingContext.HASH_SHA256)
 	context.update(canonical.to_utf8_buffer())
 	return context.finish().hex_encode()
-
