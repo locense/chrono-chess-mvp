@@ -30,11 +30,13 @@ func resolve(level, state: GameState) -> WorldView:
 	var projection: Dictionary = TemporalResolverRef.new().project(level, state, view)
 	view.frozen_piece_ids = projection["frozen_piece_ids"]
 	view.overlaps = projection["overlaps"]
+	view.temporal_allied_king_conflict = bool(projection["allied_king_conflict"])
 	view.explanations.append_array(projection["explanations"])
 	for temporal_piece in projection["temporal_pieces"]:
 		view.add_piece(temporal_piece)
-	view.status = _derive_status(level, state, bool(projection["temporal_win"]))
-	view.winning_reason = _winning_reason(level, state, view.status, bool(projection["temporal_win"]))
+	var temporal_outcome := _temporal_outcome(level, projection["temporal_hits"])
+	view.status = _derive_status(level, state, bool(temporal_outcome["win"]), bool(temporal_outcome["loss"]))
+	view.winning_reason = _winning_reason(level, state, view.status, bool(temporal_outcome["win"]), bool(temporal_outcome["loss"]))
 	if view.status == &"playing":
 		var validator = MoveValidatorRef.new()
 		for piece_id in view.pieces_by_id:
@@ -55,11 +57,13 @@ func _apply_event(pieces: Dictionary, event) -> void:
 			captured.alive = false
 
 
-func _derive_status(level, state: GameState, temporal_win := false) -> StringName:
+func _derive_status(level, state: GameState, temporal_win := false, temporal_loss := false) -> StringName:
 	if state.status == &"won":
 		return &"won"
 	if temporal_win:
 		return &"won"
+	if temporal_loss:
+		return &"lost"
 	if _captured_target_in_window(level, state):
 		return &"won"
 	if state.status == &"lost":
@@ -82,11 +86,29 @@ func _captured_target_in_window(level, state: GameState) -> bool:
 	return false
 
 
-func _winning_reason(level, state: GameState, status: StringName, temporal_win := false) -> String:
+func _winning_reason(level, state: GameState, status: StringName, temporal_win := false, temporal_loss := false) -> String:
 	if temporal_win:
 		return "Temporal projection annihilated the target king."
+	if temporal_loss:
+		return "An opposing temporal projection annihilated the white king."
 	if status == &"won":
 		return "Target king captured in the required turn window."
 	if status == &"lost" and state.white_actions_used >= level.white_action_budget:
 		return "The white action budget was exhausted."
 	return ""
+
+
+func _temporal_outcome(level, hits: Array) -> Dictionary:
+	var result := {"win": false, "loss": false}
+	var target_id := str(level.victory.get("target_king_id", ""))
+	var window: Array = level.victory.get("turn_window", [])
+	var first_turn := int(window[0]) if window.size() == 2 else 0
+	var last_turn := int(window[1]) if window.size() == 2 else -1
+	for hit in hits:
+		if hit["temporal_side"] == &"black" and hit["king_side"] == &"white":
+			result["loss"] = true
+		if hit["temporal_side"] == &"white" and hit["king_id"] == target_id:
+			var action_turn := int(hit["action_turn"])
+			if action_turn >= first_turn and action_turn <= last_turn:
+				result["win"] = true
+	return result

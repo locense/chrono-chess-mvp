@@ -84,8 +84,12 @@ func _validate(level: LevelDefinition, source: String) -> bool:
 
 static func _validate_replayable_history(level: LevelDefinition, source: String) -> bool:
 	var pieces: Dictionary = {}
+	var temporal_pieces: Dictionary = {}
 	for source_piece in level.initial_pieces:
-		pieces[source_piece.piece_id] = source_piece.copy_state()
+		if source_piece.is_temporal:
+			temporal_pieces[source_piece.piece_id] = source_piece.copy_state()
+		else:
+			pieces[source_piece.piece_id] = source_piece.copy_state()
 	var expected_side := level.initial_side
 	var event_ids: Dictionary = {}
 	for index in range(level.preplayed_events.size()):
@@ -99,7 +103,13 @@ static func _validate_replayable_history(level: LevelDefinition, source: String)
 			push_error("Event actor cannot replay in %s" % source)
 			return false
 		var target = _piece_at(pieces, event.to_square)
-		if event.is_capture():
+		if event.kind == &"temporal_capture":
+			var temporal_target = temporal_pieces.get(event.captured_piece_id, null)
+			if temporal_target == null or not temporal_target.alive or temporal_target.square != event.to_square or temporal_target.side == actor.side:
+				push_error("Invalid temporal capture event in %s" % source)
+				return false
+			temporal_target.alive = false
+		elif event.is_capture():
 			if event.kind != &"capture" or target == null or target.piece_id != event.captured_piece_id or target.side == actor.side:
 				push_error("Invalid capture event in %s" % source)
 				return false

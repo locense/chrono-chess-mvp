@@ -6,6 +6,7 @@ var pieces_by_square: Dictionary = {}
 var legal_moves_by_piece: Dictionary = {}
 var frozen_piece_ids: Dictionary = {}
 var overlaps: Dictionary = {}
+var temporal_allied_king_conflict := false
 var explanations: Array = []
 var status: StringName = &"playing"
 var winning_reason := ""
@@ -28,4 +29,3 @@ func get_primary_piece_at(square: Vector2i) -> PieceState:
 	if ids.is_empty():
 		return null
 	return pieces_by_id.get(ids[0], null)
-

@@ -35,6 +35,9 @@ func _run_all() -> void:
 	_run("test_temporal_move_without_script_returns_control", Callable(self, "test_temporal_move_without_script_returns_control"))
 	_run("test_scripted_temporal_capture_removes_projection", Callable(self, "test_scripted_temporal_capture_removes_projection"))
 	_run("test_preplayed_temporal_capture_removes_projection", Callable(self, "test_preplayed_temporal_capture_removes_projection"))
+	_run("test_temporal_hit_requires_target_and_window", Callable(self, "test_temporal_hit_requires_target_and_window"))
+	_run("test_opposing_temporal_hit_loses", Callable(self, "test_opposing_temporal_hit_loses"))
+	_run("test_temporal_move_rejects_historical_allied_king_conflict", Callable(self, "test_temporal_move_rejects_historical_allied_king_conflict"))
 	_run("test_undo_restores_confirmed_rewind", Callable(self, "test_undo_restores_confirmed_rewind"))
 	_run("test_profile_save_round_trip", Callable(self, "test_profile_save_round_trip"))
 	print("TEST SUMMARY: %d passed, %d failed" % [_passed, _failed])
@@ -360,7 +363,7 @@ func test_scripted_temporal_capture_removes_projection() -> String:
 	var level = _temporal_level([
 		_piece("white_king_h1", &"white", &"king", "h1"),
 		_piece("black_rook_h4", &"black", &"rook", "h4"),
-		_piece("temporal_rook_a4", &"black", &"rook", "a4", true),
+		_piece("temporal_rook_a4", &"white", &"rook", "a4", true),
 		_piece("black_king_h8", &"black", &"king", "h8"),
 	])
 	level.scripts = [{
@@ -380,21 +383,90 @@ func test_scripted_temporal_capture_removes_projection() -> String:
 
 
 func test_preplayed_temporal_capture_removes_projection() -> String:
-	var level = _temporal_level([
-		_piece("white_king_h1", &"white", &"king", "h1"),
-		_piece("black_rook_h4", &"black", &"rook", "h4"),
-		_piece("temporal_rook_a4", &"black", &"rook", "a4", true),
-		_piece("black_king_h8", &"black", &"king", "h8"),
-	])
-	level.preplayed_events = [
-		_event("fixture_white_wait", 0, "white_king_h1", &"white", &"move", "h1", "h2"),
-		_event("fixture_black_captures_temporal", 1, "black_rook_h4", &"black", &"temporal_capture", "h4", "a4", "temporal_rook_a4"),
-	]
-	level.start_focus_turn = 2
+	var path := "user://chrono_chess_temporal_capture_fixture.json"
+	var fixture := {
+		"id": "temporal_capture_fixture",
+		"version": 1,
+		"title": "Fixture",
+		"chapter": 1,
+		"rules": {"puzzle_capture_king": true, "fate_locks_enabled": false, "temporal_enabled": true, "overlap_enabled": true, "rewind_cost": 1},
+		"initial_position": {"side_to_move": "white", "pieces": [
+			{"piece_id": "white_king_h1", "side": "white", "role": "king", "square": "h1"},
+			{"piece_id": "black_rook_h4", "side": "black", "role": "rook", "square": "h4"},
+			{"piece_id": "temporal_rook_a4", "side": "white", "role": "rook", "square": "a4", "is_temporal": true},
+			{"piece_id": "black_king_h8", "side": "black", "role": "king", "square": "h8"},
+		]},
+		"preplayed_events": [
+			{"event_id": "fixture_white_wait", "absolute_turn": 0, "actor": "white_king_h1", "side": "white", "kind": "move", "from": "h1", "to": "h2", "captured_piece_id": null},
+			{"event_id": "fixture_black_captures_temporal", "absolute_turn": 1, "actor": "black_rook_h4", "side": "black", "kind": "temporal_capture", "from": "h4", "to": "a4", "captured_piece_id": "temporal_rook_a4"},
+		],
+		"start_focus_turn": 2,
+		"chronal_energy": 1,
+		"white_action_budget": 2,
+		"rewind_targets": [0],
+		"scripts": [],
+		"victory": {"target_king_id": "black_king_h8", "turn_window": [0, 2]},
+		"tutorial": {},
+		"expected_solution": [],
+	}
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(fixture))
+	file.close()
+	var level = LevelLoaderRef.new().load_level(path)
+	_remove_if_present(path)
+	if level == null:
+		return "loader must accept a valid preplayed temporal capture"
 	var state = GameReducerRef.new().create_initial_state(level)
 	var view = WorldResolverRef.new().resolve(level, state)
 	if state.temporal_states["temporal_rook_a4"].alive or view.pieces_by_id.has("temporal_rook_a4"):
 		return "preplayed temporal capture must remove the global projection"
+	return ""
+
+
+func test_temporal_hit_requires_target_and_window() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_king_a8", &"black", &"king", "a8"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	level.victory = {"target_king_id": "black_king_h8", "turn_window": [1, 1]}
+	var state = GameReducerRef.new().create_initial_state(level)
+	var result: Dictionary = GameReducerRef.new().try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("a8"))
+	if not str(result["error"]).is_empty():
+		return "fixture temporal move was rejected"
+	if result["view"].status == &"won":
+		return "non-target or out-of-window temporal hit must not win"
+	return ""
+
+
+func test_opposing_temporal_hit_loses() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a4", &"black", &"rook", "a4", true),
+		_piece("white_king_a4", &"white", &"king", "a4"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	var state = GameReducerRef.new().create_initial_state(level)
+	var view = WorldResolverRef.new().resolve(level, state)
+	if view.status != &"lost":
+		return "an opposing temporal projection onto the white king must lose"
+	return ""
+
+
+func test_temporal_move_rejects_historical_allied_king_conflict() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	level.preplayed_events = [_event("fixture_white_king_h2", 0, "white_king_h1", &"white", &"move", "h1", "h2")]
+	level.start_focus_turn = 1
+	var state = GameReducerRef.new().create_initial_state(level)
+	var result: Dictionary = GameReducerRef.new().try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("h1"))
+	if str(result["error"]).is_empty():
+		return "a temporal projection onto an allied king in earlier history must be rejected"
+	if state.temporal_states["temporal_rook_a1"].square != BoardCoordsRef.from_algebraic("a1"):
+		return "historical conflict rejection must not mutate temporal state"
 	return ""
 
 

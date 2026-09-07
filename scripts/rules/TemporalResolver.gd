@@ -27,7 +27,8 @@ func project(level, state: GameState, view: WorldView) -> Dictionary:
 		"temporal_pieces": [],
 		"frozen_piece_ids": {},
 		"overlaps": {},
-		"temporal_win": false,
+		"temporal_hits": [],
+		"allied_king_conflict": false,
 		"explanations": [],
 	}
 	if not level.temporal_enabled():
@@ -43,9 +44,15 @@ func project(level, state: GameState, view: WorldView) -> Dictionary:
 		if ordinary != null:
 			if ordinary.role == &"king":
 				if ordinary.side != piece.side:
-					result["temporal_win"] = true
+					result["temporal_hits"].append({
+						"king_id": ordinary.piece_id,
+						"king_side": ordinary.side,
+						"temporal_side": piece.side,
+						"action_turn": temporal.changed_at_absolute_turn,
+					})
 					result["explanations"].append("Temporal annihilation at %s." % BoardCoordsRef.to_algebraic(piece.square))
 				else:
+					result["allied_king_conflict"] = true
 					result["explanations"].append("Temporal projection conflicts with the allied king.")
 			elif level.overlap_enabled():
 				var square_key := BoardCoordsRef.key(piece.square)
@@ -65,4 +72,3 @@ func _ordinary_piece_at(view: WorldView, square: Vector2i):
 		if not piece.is_temporal:
 			return piece
 	return null
-

@@ -71,6 +71,8 @@ func try_temporal_move(level, state: GameState, temporal_id: String, destination
 	var legal_moves: Array = TemporalResolverRef.new().legal_moves(view, temporal)
 	if not legal_moves.has(destination):
 		return {"state": state, "view": view, "error": "That temporal destination is illegal."}
+	if _would_conflict_with_allied_king(level, state, temporal_id, destination, resolver):
+		return {"state": state, "view": view, "error": "That temporal projection conflicts with the allied king in recorded history."}
 	var next := state.deep_copy()
 	next.temporal_states[temporal_id].square = destination
 	next.temporal_states[temporal_id].changed_at_absolute_turn = state.focus_turn
@@ -83,3 +85,15 @@ func try_temporal_move(level, state: GameState, temporal_id: String, destination
 		next_view = resolver.resolve(level, next)
 	next.status = next_view.status
 	return {"state": next, "view": next_view, "error": ""}
+
+
+func _would_conflict_with_allied_king(level, state: GameState, temporal_id: String, destination: Vector2i, resolver) -> bool:
+	var candidate := state.deep_copy()
+	candidate.temporal_states[temporal_id].square = destination
+	var projection_start: int = int(candidate.temporal_states[temporal_id].projection_start_turn)
+	for historical_turn in range(projection_start, state.focus_turn + 1):
+		candidate.focus_turn = historical_turn
+		var historical_view = resolver.resolve(level, candidate)
+		if historical_view.temporal_allied_king_conflict:
+			return true
+	return false
