@@ -78,5 +78,8 @@ func try_temporal_move(level, state: GameState, temporal_id: String, destination
 	next.active_side = &"black"
 	next.white_actions_used += 1
 	var next_view = resolver.resolve(level, next)
+	if next_view.status == &"playing":
+		next = ScriptRunnerRef.new().apply_after_white_turn(level, next, state.focus_turn)
+		next_view = resolver.resolve(level, next)
 	next.status = next_view.status
 	return {"state": next, "view": next_view, "error": ""}

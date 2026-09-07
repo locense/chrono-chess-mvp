@@ -32,6 +32,9 @@ func _run_all() -> void:
 	_run("test_temporal_allied_king_overlap_is_rejected", Callable(self, "test_temporal_allied_king_overlap_is_rejected"))
 	_run("test_temporal_capture_removes_projection_without_fate_lock", Callable(self, "test_temporal_capture_removes_projection_without_fate_lock"))
 	_run("test_overlap_releases_after_fate_echo_vanishes", Callable(self, "test_overlap_releases_after_fate_echo_vanishes"))
+	_run("test_temporal_move_without_script_returns_control", Callable(self, "test_temporal_move_without_script_returns_control"))
+	_run("test_scripted_temporal_capture_removes_projection", Callable(self, "test_scripted_temporal_capture_removes_projection"))
+	_run("test_preplayed_temporal_capture_removes_projection", Callable(self, "test_preplayed_temporal_capture_removes_projection"))
 	_run("test_undo_restores_confirmed_rewind", Callable(self, "test_undo_restores_confirmed_rewind"))
 	_run("test_profile_save_round_trip", Callable(self, "test_profile_save_round_trip"))
 	print("TEST SUMMARY: %d passed, %d failed" % [_passed, _failed])
@@ -340,6 +343,61 @@ func test_overlap_releases_after_fate_echo_vanishes() -> String:
 	return ""
 
 
+func test_temporal_move_without_script_returns_control() -> String:
+	var level = _temporal_level([
+		_piece("temporal_rook_a1", &"white", &"rook", "a1", true),
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	var state = GameReducerRef.new().create_initial_state(level)
+	var result: Dictionary = GameReducerRef.new().try_temporal_move(level, state, "temporal_rook_a1", BoardCoordsRef.from_algebraic("a4"))
+	if not str(result["error"]).is_empty() or result["state"].active_side != &"white":
+		return "a temporal move without a black script must return control to white"
+	return ""
+
+
+func test_scripted_temporal_capture_removes_projection() -> String:
+	var level = _temporal_level([
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_rook_h4", &"black", &"rook", "h4"),
+		_piece("temporal_rook_a4", &"black", &"rook", "a4", true),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	level.scripts = [{
+		"script_id": "fixture_black_captures_temporal",
+		"after_white_turn": 0,
+		"event": {"actor": "black_rook_h4", "side": "black", "kind": "temporal_capture", "from": "h4", "to": "a4", "captured_piece_id": "temporal_rook_a4"},
+	}]
+	var state = GameReducerRef.new().create_initial_state(level)
+	var result: Dictionary = GameReducerRef.new().try_move(level, state, "white_king_h1", BoardCoordsRef.from_algebraic("h2"))
+	if not str(result["error"]).is_empty():
+		return "fixture white move was rejected"
+	if result["state"].temporal_states["temporal_rook_a4"].alive:
+		return "scripted temporal capture must update the temporal layer"
+	if result["view"].pieces_by_id.has("temporal_rook_a4"):
+		return "scripted temporal capture must remove all temporal projections"
+	return ""
+
+
+func test_preplayed_temporal_capture_removes_projection() -> String:
+	var level = _temporal_level([
+		_piece("white_king_h1", &"white", &"king", "h1"),
+		_piece("black_rook_h4", &"black", &"rook", "h4"),
+		_piece("temporal_rook_a4", &"black", &"rook", "a4", true),
+		_piece("black_king_h8", &"black", &"king", "h8"),
+	])
+	level.preplayed_events = [
+		_event("fixture_white_wait", 0, "white_king_h1", &"white", &"move", "h1", "h2"),
+		_event("fixture_black_captures_temporal", 1, "black_rook_h4", &"black", &"temporal_capture", "h4", "a4", "temporal_rook_a4"),
+	]
+	level.start_focus_turn = 2
+	var state = GameReducerRef.new().create_initial_state(level)
+	var view = WorldResolverRef.new().resolve(level, state)
+	if state.temporal_states["temporal_rook_a4"].alive or view.pieces_by_id.has("temporal_rook_a4"):
+		return "preplayed temporal capture must remove the global projection"
+	return ""
+
+
 func _temporal_level(pieces: Array) -> LevelDefinition:
 	var level := LevelDefinition.new()
 	level.id = "temporal_rules_fixture"
@@ -368,6 +426,19 @@ func _piece(piece_id: String, side: StringName, role: StringName, square: String
 	piece.square = BoardCoordsRef.from_algebraic(square)
 	piece.is_temporal = is_temporal
 	return piece
+
+
+func _event(event_id: String, absolute_turn: int, actor: String, side: StringName, kind: StringName, from_square: String, to_square: String, captured_piece_id := "") -> MoveEvent:
+	var event := MoveEvent.new()
+	event.event_id = event_id
+	event.absolute_turn = absolute_turn
+	event.actor_id = actor
+	event.side = side
+	event.kind = kind
+	event.from_square = BoardCoordsRef.from_algebraic(from_square)
+	event.to_square = BoardCoordsRef.from_algebraic(to_square)
+	event.captured_piece_id = captured_piece_id
+	return event
 
 
 func test_undo_restores_confirmed_rewind() -> String:

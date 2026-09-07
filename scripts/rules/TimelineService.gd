@@ -17,7 +17,10 @@ func create_initial_state(level) -> GameState:
 		if piece.is_temporal:
 			state.temporal_states[piece.piece_id] = TemporalStateRef.from_piece(piece, 0)
 	for event in level.preplayed_events:
-		state.current_events.append(event.copy_event())
+		var copied_event = event.copy_event()
+		state.current_events.append(copied_event)
+		if copied_event.is_capture() and state.temporal_states.has(copied_event.captured_piece_id):
+			state.temporal_states[copied_event.captured_piece_id].alive = false
 	FateResolverRef.new().rebuild_from_events(level, state)
 	state.next_event_serial = state.current_events.size()
 	return state

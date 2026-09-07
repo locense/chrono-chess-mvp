@@ -6,6 +6,7 @@ const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
 
 
 func apply_after_white_turn(level, state: GameState, white_turn: int) -> GameState:
+	var ran_response := false
 	for script in level.scripts:
 		if int(script.get("after_white_turn", -1)) != white_turn:
 			continue
@@ -22,8 +23,14 @@ func apply_after_white_turn(level, state: GameState, white_turn: int) -> GameSta
 		state.current_events.append(response)
 		state.next_event_serial += 1
 		if response.is_capture():
-			FateResolverRef.new().register_capture(level, state, response)
+			if state.temporal_states.has(response.captured_piece_id):
+				state.temporal_states[response.captured_piece_id].alive = false
+			else:
+				FateResolverRef.new().register_capture(level, state, response)
 		state.focus_turn += 1
+		state.active_side = &"white"
+		ran_response = true
+	if not ran_response:
 		state.active_side = &"white"
 	return state
 
@@ -33,4 +40,3 @@ func _has_event(state: GameState, event_id: String) -> bool:
 		if event.event_id == event_id:
 			return true
 	return false
-
