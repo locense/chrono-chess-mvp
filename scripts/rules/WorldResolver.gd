@@ -2,6 +2,7 @@ class_name WorldResolver
 extends RefCounted
 
 const MoveValidatorRef = preload("res://scripts/rules/MoveValidator.gd")
+const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
 
 
 func resolve(level, state: GameState) -> WorldView:
@@ -20,6 +21,7 @@ func resolve(level, state: GameState) -> WorldView:
 			continue
 		_apply_event(ordinary_pieces, event)
 	var view := WorldView.new()
+	view.explanations.append_array(FateResolverRef.new().apply_to_pieces(level, state, ordinary_pieces))
 	for piece_id in ordinary_pieces:
 		var piece = ordinary_pieces[piece_id]
 		if piece.alive:
@@ -77,4 +79,3 @@ func _winning_reason(level, state: GameState, status: StringName) -> String:
 	if status == &"lost" and state.white_actions_used >= level.white_action_budget:
 		return "The white action budget was exhausted."
 	return ""
-

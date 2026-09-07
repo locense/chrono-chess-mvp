@@ -74,4 +74,48 @@ func _validate(level: LevelDefinition, source: String) -> bool:
 	if level.start_focus_turn < 0 or level.chronal_energy < 0 or level.white_action_budget < 1:
 		push_error("Invalid numeric constraint in %s" % source)
 		return false
+	if level.start_focus_turn != level.preplayed_events.size():
+		push_error("Start focus must follow the preplayed history in %s" % source)
+		return false
+	if not _validate_replayable_history(level, source):
+		return false
 	return true
+
+
+static func _validate_replayable_history(level: LevelDefinition, source: String) -> bool:
+	var pieces: Dictionary = {}
+	for source_piece in level.initial_pieces:
+		pieces[source_piece.piece_id] = source_piece.copy_state()
+	var expected_side := level.initial_side
+	var event_ids: Dictionary = {}
+	for index in range(level.preplayed_events.size()):
+		var event = level.preplayed_events[index]
+		if event_ids.has(event.event_id) or event.absolute_turn != index or event.side != expected_side:
+			push_error("Invalid event order or side in %s" % source)
+			return false
+		event_ids[event.event_id] = true
+		var actor = pieces.get(event.actor_id, null)
+		if actor == null or not actor.alive or actor.side != expected_side or actor.square != event.from_square:
+			push_error("Event actor cannot replay in %s" % source)
+			return false
+		var target = _piece_at(pieces, event.to_square)
+		if event.is_capture():
+			if event.kind != &"capture" or target == null or target.piece_id != event.captured_piece_id or target.side == actor.side:
+				push_error("Invalid capture event in %s" % source)
+				return false
+			target.alive = false
+		else:
+			if event.kind != &"move" or target != null:
+				push_error("Invalid move event in %s" % source)
+				return false
+		actor.square = event.to_square
+		expected_side = &"black" if expected_side == &"white" else &"white"
+	return true
+
+
+static func _piece_at(pieces: Dictionary, square: Vector2i):
+	for piece_id in pieces:
+		var piece = pieces[piece_id]
+		if piece.alive and piece.square == square:
+			return piece
+	return null

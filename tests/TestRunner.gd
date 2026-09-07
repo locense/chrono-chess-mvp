@@ -4,6 +4,7 @@ const LevelLoaderRef = preload("res://scripts/content/LevelLoader.gd")
 const GameReducerRef = preload("res://scripts/rules/GameReducer.gd")
 const WorldResolverRef = preload("res://scripts/rules/WorldResolver.gd")
 const BoardCoordsRef = preload("res://scripts/domain/BoardCoords.gd")
+const StateHasherRef = preload("res://scripts/rules/StateHasher.gd")
 
 var _passed := 0
 var _failed := 0
@@ -14,13 +15,22 @@ func _init() -> void:
 	_run("test_level_01_load_and_rewind", Callable(self, "test_level_01_load_and_rewind"))
 	_run("test_level_01_solution_wins", Callable(self, "test_level_01_solution_wins"))
 	_run("test_level_01_direct_capture_fails", Callable(self, "test_level_01_direct_capture_fails"))
+	_run("test_level_02_preplayed_capture_creates_fate_lock", Callable(self, "test_level_02_preplayed_capture_creates_fate_lock"))
+	_run("test_level_02_rewind_restores_knight_as_echo", Callable(self, "test_level_02_rewind_restores_knight_as_echo"))
+	_run("test_level_02_fate_lock_removes_repositioned_knight", Callable(self, "test_level_02_fate_lock_removes_repositioned_knight"))
+	_run("test_level_02_solution_wins", Callable(self, "test_level_02_solution_wins"))
+	_run("test_replay_hash_is_deterministic", Callable(self, "test_replay_hash_is_deterministic"))
 	print("TEST SUMMARY: %d passed, %d failed" % [_passed, _failed])
 	quit(0 if _failed == 0 else 1)
 
 
 func _run(name: String, test: Callable) -> void:
 	var result = test.call()
-	if result is String and not result.is_empty():
+	if typeof(result) != TYPE_STRING:
+		_failed += 1
+		push_error("FAIL %s: test did not return a String" % name)
+		return
+	if not result.is_empty():
 		_failed += 1
 		push_error("FAIL %s: %s" % [name, result])
 		return
@@ -67,6 +77,10 @@ func test_level_01_load_and_rewind() -> String:
 	var rewound_view = resolver.resolve(level, rewound)
 	if rewound.chronal_energy != 0 or rewound.current_events.size() != 0 or rewound.archived_future_events.size() != 2:
 		return "rewind must spend energy and archive both preplayed events"
+	if rewound.focus_turn != 0 or rewound.active_side != &"white" or state.current_events.size() != 2:
+		return "rewind must create an independent white-to-move T00 state"
+	if rewound.archived_future_events[0].event_id != "l01_t00_white_king_h2" or rewound.archived_future_events[1].event_id != "l01_t01_black_rook_a4":
+		return "archived future events must preserve their authored order"
 	if rewound_view.pieces_by_id["white_king_h1"].square != BoardCoordsRef.from_algebraic("h1"):
 		return "rewind must restore the T00 white king square"
 	if not rewound_view.legal_moves_by_piece["white_rook_a1"].has(BoardCoordsRef.from_algebraic("a8")):
@@ -96,4 +110,98 @@ func test_level_01_direct_capture_fails() -> String:
 		return "the direct black rook capture should be legal"
 	if result["state"].status != &"lost":
 		return "spending the only action without victory must lose"
+	if result["view"].pieces_by_id.has("black_rook_b4"):
+		return "the direct move must actually capture the black rook on a4"
+	var rewind_after_loss: Dictionary = reducer.try_rewind(level, result["state"], 0)
+	if str(rewind_after_loss["error"]).is_empty():
+		return "a finished failure state must require retry instead of rewind"
 	return ""
+
+
+func test_level_02_preplayed_capture_creates_fate_lock() -> String:
+	var level = LevelLoaderRef.new().load_by_id("chapter_01_level_02")
+	var reducer = GameReducerRef.new()
+	var resolver = WorldResolverRef.new()
+	var state = reducer.create_initial_state(level)
+	var view = resolver.resolve(level, state)
+	if not state.fate_locks.has("white_knight_c3"):
+		return "the preplayed bishop capture must create the knight fate lock"
+	if state.fate_locks["white_knight_c3"].death_turn != 1:
+		return "the knight fate lock must remain anchored at T01"
+	if view.pieces_by_id.has("white_knight_c3"):
+		return "the knight must not be visible at the T02 entry snapshot"
+	if view.pieces_by_id["black_bishop_b5"].square != BoardCoordsRef.from_algebraic("e2"):
+		return "the preplayed bishop capture must end on e2"
+	return ""
+
+
+func test_level_02_rewind_restores_knight_as_echo() -> String:
+	var level = LevelLoaderRef.new().load_by_id("chapter_01_level_02")
+	var reducer = GameReducerRef.new()
+	var resolver = WorldResolverRef.new()
+	var state = reducer.create_initial_state(level)
+	var result: Dictionary = reducer.try_rewind(level, state, 0)
+	if not str(result["error"]).is_empty():
+		return "level two rewind must be available"
+	state = result["state"]
+	var view = resolver.resolve(level, state)
+	var knight = view.pieces_by_id.get("white_knight_c3", null)
+	if knight == null or knight.square != BoardCoordsRef.from_algebraic("c3"):
+		return "rewind must restore the knight at c3"
+	if not knight.is_fate_echo or state.chronal_energy != 0:
+		return "rewound knight must be an echo and consume the only energy"
+	return ""
+
+
+func test_level_02_fate_lock_removes_repositioned_knight() -> String:
+	var level = LevelLoaderRef.new().load_by_id("chapter_01_level_02")
+	var reducer = GameReducerRef.new()
+	var state = reducer.create_initial_state(level)
+	state = reducer.try_rewind(level, state, 0)["state"]
+	var result: Dictionary = reducer.try_move(level, state, "white_knight_c3", BoardCoordsRef.from_algebraic("d5"))
+	if not str(result["error"]).is_empty():
+		return "a legal alternate knight move was rejected"
+	var next: GameState = result["state"]
+	if next.focus_turn != 2 or next.active_side != &"white":
+		return "the black response must settle synchronously before returning control"
+	if result["view"].pieces_by_id.has("white_knight_c3"):
+		return "the knight must vanish after T01 even on a rewritten path"
+	if result["view"].pieces_by_id["black_bishop_b5"].square != BoardCoordsRef.from_algebraic("c6"):
+		return "the deterministic black response must move the bishop to c6"
+	return ""
+
+
+func test_level_02_solution_wins() -> String:
+	var level = LevelLoaderRef.new().load_by_id("chapter_01_level_02")
+	var reducer = GameReducerRef.new()
+	var state = reducer.create_initial_state(level)
+	state = reducer.try_rewind(level, state, 0)["state"]
+	var knight_result: Dictionary = reducer.try_move(level, state, "white_knight_c3", BoardCoordsRef.from_algebraic("a4"))
+	if not str(knight_result["error"]).is_empty():
+		return "the authored knight capture was rejected"
+	var rook_result: Dictionary = reducer.try_move(level, knight_result["state"], "white_rook_a1", BoardCoordsRef.from_algebraic("a8"))
+	if not str(rook_result["error"]).is_empty():
+		return "the opened rook capture was rejected"
+	if rook_result["state"].status != &"won" or rook_result["view"].status != &"won":
+		return "capturing the king at T02 must win level two"
+	return ""
+
+
+func test_replay_hash_is_deterministic() -> String:
+	var level = LevelLoaderRef.new().load_by_id("chapter_01_level_02")
+	var first_hash := _solve_level_two_hash(level)
+	var second_hash := _solve_level_two_hash(level)
+	if first_hash.is_empty() or first_hash != second_hash:
+		return "the same solution must yield the same world hash"
+	return ""
+
+
+func _solve_level_two_hash(level) -> String:
+	var reducer = GameReducerRef.new()
+	var resolver = WorldResolverRef.new()
+	var hasher = StateHasherRef.new()
+	var state = reducer.create_initial_state(level)
+	state = reducer.try_rewind(level, state, 0)["state"]
+	state = reducer.try_move(level, state, "white_knight_c3", BoardCoordsRef.from_algebraic("a4"))["state"]
+	state = reducer.try_move(level, state, "white_rook_a1", BoardCoordsRef.from_algebraic("a8"))["state"]
+	return hasher.hash_world(state, resolver.resolve(level, state))

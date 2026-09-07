@@ -1,6 +1,8 @@
 class_name TimelineService
 extends RefCounted
 
+const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
+
 
 func create_initial_state(level) -> GameState:
 	var state := GameState.new()
@@ -12,6 +14,7 @@ func create_initial_state(level) -> GameState:
 	state.status = &"playing"
 	for event in level.preplayed_events:
 		state.current_events.append(event.copy_event())
+	FateResolverRef.new().rebuild_from_events(level, state)
 	state.next_event_serial = state.current_events.size()
 	return state
 
@@ -19,6 +22,8 @@ func create_initial_state(level) -> GameState:
 func try_rewind(level, state: GameState, target_turn: int) -> Dictionary:
 	if state.status == &"won":
 		return {"state": state, "error": "The puzzle is already complete."}
+	if state.status == &"lost":
+		return {"state": state, "error": "The puzzle is over. Retry to begin a new timeline."}
 	if not level.rewind_targets.has(target_turn):
 		return {"state": state, "error": "That timeline node is not a rewind target."}
 	if target_turn >= state.focus_turn:
@@ -37,4 +42,3 @@ func try_rewind(level, state: GameState, target_turn: int) -> Dictionary:
 	next.active_side = &"white"
 	next.status = &"playing"
 	return {"state": next, "error": ""}
-

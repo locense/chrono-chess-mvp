@@ -3,6 +3,8 @@ extends RefCounted
 
 const TimelineServiceRef = preload("res://scripts/rules/TimelineService.gd")
 const WorldResolverRef = preload("res://scripts/rules/WorldResolver.gd")
+const FateResolverRef = preload("res://scripts/rules/FateResolver.gd")
+const ScriptRunnerRef = preload("res://scripts/rules/ScriptRunner.gd")
 
 
 func create_initial_state(level) -> GameState:
@@ -19,7 +21,7 @@ func try_move(level, state: GameState, actor_id: String, destination: Vector2i) 
 	if view.status != &"playing":
 		return {"state": state, "view": view, "error": "The current puzzle state cannot accept a move."}
 	var actor = view.pieces_by_id.get(actor_id, null)
-	if actor == null or actor.side != state.active_side or actor.is_temporal:
+	if actor == null or state.active_side != &"white" or actor.side != &"white" or actor.is_temporal:
 		return {"state": state, "view": view, "error": "That piece cannot act now."}
 	var legal_moves: Array = view.legal_moves_by_piece.get(actor_id, [])
 	if not legal_moves.has(destination):
@@ -39,11 +41,15 @@ func try_move(level, state: GameState, actor_id: String, destination: Vector2i) 
 		event.captured_piece_id = target.piece_id
 	next.current_events.append(event)
 	next.next_event_serial += 1
+	if event.is_capture():
+		FateResolverRef.new().register_capture(level, next, event)
 	next.focus_turn += 1
 	next.active_side = &"black" if actor.side == &"white" else &"white"
 	if actor.side == &"white":
 		next.white_actions_used += 1
 	var next_view = resolver.resolve(level, next)
+	if actor.side == &"white" and next_view.status == &"playing":
+		next = ScriptRunnerRef.new().apply_after_white_turn(level, next, event.absolute_turn)
+		next_view = resolver.resolve(level, next)
 	next.status = next_view.status
 	return {"state": next, "view": next_view, "error": ""}
-

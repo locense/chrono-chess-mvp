@@ -30,9 +30,12 @@ added in the UI checkpoint.
 - Ordinary king, rook, knight, and bishop movement for puzzle capture rules.
 - Single-timeline rewind with persistent energy and archived future events.
 - Level 1 load, rewind, win, and direct-failure rule tests.
+- Fate locks rebuilt from preplayed captures, including visible fate echoes.
+- Synchronous deterministic black script support for Level 2.
+- Level 2 solution and alternate-path fate-lock tests.
+- Stable SHA-256 world-state hashing for deterministic replay checks.
 
 ## Not Yet Implemented
 
-- Fate locks and the Level 2 deterministic black reply.
 - Temporal rook and overlap handling.
 - Board interaction, timeline UI, undo, saves, and the desktop UI.
