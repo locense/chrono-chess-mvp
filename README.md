@@ -31,6 +31,20 @@ game directly:
 & 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script res://tests/TestRunner.gd
 ```
 
+## Windows Export
+
+`export_presets.cfg` contains a `Windows Desktop` x86_64 preset. Install the
+matching Godot 4.7.2 export templates, create the output directory, then run:
+
+```powershell
+New-Item -ItemType Directory -Force build\windows
+& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --export-release 'Windows Desktop' 'build\windows\ChronoChess.exe'
+```
+
+The preset is present in source control. The export itself has not been
+validated on this machine because its 4.7.2 Windows export templates are not
+installed.
+
 ## Implemented
 
 - Project configuration and stable piece/event data contracts.
