@@ -1,0 +1,43 @@
+{
+  "id": "chapter_01_level_01",
+  "version": 1,
+  "title": "A Missed Line",
+  "chapter": 1,
+  "rules": {
+    "puzzle_capture_king": true,
+    "fate_locks_enabled": false,
+    "temporal_enabled": false,
+    "overlap_enabled": false,
+    "allowed_piece_roles": ["king", "rook"],
+    "rewind_cost": 1
+  },
+  "initial_position": {
+    "side_to_move": "white",
+    "pieces": [
+      {"piece_id": "white_king_h1", "side": "white", "role": "king", "square": "h1"},
+      {"piece_id": "white_rook_a1", "side": "white", "role": "rook", "square": "a1"},
+      {"piece_id": "black_king_a8", "side": "black", "role": "king", "square": "a8"},
+      {"piece_id": "black_rook_b4", "side": "black", "role": "rook", "square": "b4"}
+    ]
+  },
+  "preplayed_events": [
+    {"event_id": "l01_t00_white_king_h2", "absolute_turn": 0, "actor": "white_king_h1", "side": "white", "kind": "move", "from": "h1", "to": "h2", "captured_piece_id": null},
+    {"event_id": "l01_t01_black_rook_a4", "absolute_turn": 1, "actor": "black_rook_b4", "side": "black", "kind": "move", "from": "b4", "to": "a4", "captured_piece_id": null}
+  ],
+  "start_focus_turn": 2,
+  "chronal_energy": 1,
+  "white_action_budget": 1,
+  "rewind_targets": [0],
+  "scripts": [],
+  "victory": {"target_king_id": "black_king_a8", "turn_window": [0, 0]},
+  "tutorial": {
+    "enter": "The timeline records the moves already played. Rewind to return to an earlier decision point.",
+    "rewind_label": "Return to T00. Cost: 1 chronal energy.",
+    "blocked_label": "The black rook blocks the a-file."
+  },
+  "expected_solution": [
+    {"kind": "rewind", "target_turn": 0},
+    {"kind": "move", "actor": "white_rook_a1", "from": "a1", "to": "a8", "captured_piece_id": "black_king_a8"}
+  ]
+}
+

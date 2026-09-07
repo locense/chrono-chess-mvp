@@ -1,0 +1,7 @@
+.godot/
+.import/
+*.tmp
+*.bak
+*.user
+exports/
+

@@ -1,0 +1,54 @@
+{
+  "id": "chapter_01_level_02",
+  "version": 1,
+  "title": "Locked Fate",
+  "chapter": 1,
+  "rules": {
+    "puzzle_capture_king": true,
+    "fate_locks_enabled": true,
+    "temporal_enabled": false,
+    "overlap_enabled": false,
+    "allowed_piece_roles": ["king", "rook", "knight", "bishop"],
+    "rewind_cost": 1
+  },
+  "initial_position": {
+    "side_to_move": "white",
+    "pieces": [
+      {"piece_id": "white_king_h1", "side": "white", "role": "king", "square": "h1"},
+      {"piece_id": "white_rook_a1", "side": "white", "role": "rook", "square": "a1"},
+      {"piece_id": "white_knight_c3", "side": "white", "role": "knight", "square": "c3"},
+      {"piece_id": "black_king_a8", "side": "black", "role": "king", "square": "a8"},
+      {"piece_id": "black_rook_a4", "side": "black", "role": "rook", "square": "a4"},
+      {"piece_id": "black_bishop_b5", "side": "black", "role": "bishop", "square": "b5"}
+    ]
+  },
+  "preplayed_events": [
+    {"event_id": "l02_t00_white_knight_e2", "absolute_turn": 0, "actor": "white_knight_c3", "side": "white", "kind": "move", "from": "c3", "to": "e2", "captured_piece_id": null},
+    {"event_id": "l02_t01_black_bishop_captures_knight", "absolute_turn": 1, "actor": "black_bishop_b5", "side": "black", "kind": "capture", "from": "b5", "to": "e2", "captured_piece_id": "white_knight_c3"}
+  ],
+  "start_focus_turn": 2,
+  "chronal_energy": 1,
+  "white_action_budget": 2,
+  "rewind_targets": [0],
+  "scripts": [
+    {
+      "script_id": "l02_black_reply_after_t00",
+      "after_white_turn": 0,
+      "event": {"actor": "black_bishop_b5", "side": "black", "kind": "move", "from": "b5", "to": "c6", "captured_piece_id": null}
+    }
+  ],
+  "victory": {"target_king_id": "black_king_a8", "turn_window": [2, 2]},
+  "tutorial": {
+    "enter": "The knight died at T01. Rewind before that turn and use its remaining moment.",
+    "fate_label": "Fate lock: this knight vanishes after T01.",
+    "fate_resolved_label": "Fate closes at T01. The knight is gone, but the rook was cleared."
+  },
+  "expected_solution": [
+    {"kind": "rewind", "target_turn": 0},
+    {"kind": "move", "actor": "white_knight_c3", "from": "c3", "to": "a4", "captured_piece_id": "black_rook_a4"},
+    {"kind": "script", "script_id": "l02_black_reply_after_t00"},
+    {"kind": "fate_resolve", "piece_id": "white_knight_c3", "death_turn": 1},
+    {"kind": "move", "actor": "white_rook_a1", "from": "a1", "to": "a8", "captured_piece_id": "black_king_a8"}
+  ]
+}
+
