@@ -1,0 +1,80 @@
+# Chrono Chess MVP
+
+[English](README.md)
+
+这是一个使用 Godot 4.7.2 制作的原创桌面棋类谜题原型。当前包含第一章的
+前两关、确定性的规则引擎，以及原创的几何占位视觉。项目未使用任何第三方
+游戏资产、文案、关卡或界面布局。
+
+## 工具链
+
+- Godot：`4.7.2.stable`
+- 本机验证使用的可执行文件：
+  `F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe`
+
+## 启动游戏
+
+在 Godot 4.7.2 中打开 `project.godot` 并运行项目。主场景是一个
+1280x720 的桌面谜题界面，支持鼠标选子、合法落点高亮、`R` 回溯、`Z` 撤销，
+以及 `Escape` 取消回溯预览。
+
+也可以在本项目目录内直接使用已安装的图形版 Godot 启动：
+
+```powershell
+& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64.exe' --path .
+```
+
+## 运行测试
+
+```powershell
+& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script res://tests/TestRunner.gd
+```
+
+## Windows 导出
+
+`export_presets.cfg` 中已经提供名为 `Windows Desktop` 的 x86_64 导出预设。
+安装与 Godot 4.7.2 匹配的导出模板后，创建输出目录并运行：
+
+```powershell
+New-Item -ItemType Directory -Force build\windows
+& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --export-release 'Windows Desktop' 'build\windows\ChronoChess.exe'
+```
+
+导出预设已经纳入版本控制。本机尚未安装 Godot 4.7.2 的 Windows 导出模板，
+因此尚未验证独立 `.exe` 的实际生成。
+
+## 已实现
+
+- 项目配置，以及稳定的棋子和事件数据契约。
+- 第一章第 1、2 关的 JSON 关卡定义。
+- 确定性的普通事件重放与稳定的绝对回合快照。
+- 用于谜题吃王规则的普通王、车、马、象移动。
+- 单时间线回溯、持久时序能量和被归档的未来事件。
+- 第 1 关的加载、回溯、胜利和直接失败规则测试。
+- 从预置捕获重建的命运锁，包含可见的命运残影。
+- 第 2 关的同步、确定性黑方脚本。
+- 第 2 关解法和替代路线下命运锁的测试。
+- 用于确定性重放检查的稳定 SHA-256 世界状态哈希。
+- 一枚独立于普通时间线快照存储的时序车规则层。
+- 会冻结普通棋子并阻止普通棋子进入的现实重叠。
+- 对敌方王的时序湮灭、己方王冲突拒绝和时序捕获移除测试。
+- 跨已记录历史的时序投影校验，包括目标王回合窗口和基于 JSON 的时序捕获重放。
+- 已确认走子和回溯的会话级撤销，使用深拷贝状态恢复。
+- 具备临时文件验证和备份回退的原子本地完成度存档。
+- 可玩的第一章桌面界面：关卡选择、自绘棋盘和棋子、检查器、撤销/重试、
+  回溯预览/确认、结果对话框，以及显示命运锁和归档标记的固定宽度时间轴节点。
+- 原创几何占位美术，包括时序标记和代码绘制的棋子轮廓；未使用外部游戏资产、
+  文案或关卡。
+- 回溯确认、Escape 取消、重置后清除选中状态和归档时间轴渲染的 UI 回归测试。
+
+## 本地存档
+
+完成关卡后，进度会原子写入 Godot 的本地 `user://` 存储，文件名为
+`chrono_chess_profile.json`。游戏会为每个已完成的第一章谜题保存最少白方行动数。
+
+## 尚未实现
+
+- 已验证的独立 Windows `.exe` 导出。本机已有 Godot 编辑器，但尚未安装
+  对应的 4.7.2 导出模板。
+- 更多章节、专门设计的时序车/现实重叠谜题关卡、音频、超出键盘操作之外的
+  无障碍设置、本地化和联机功能。

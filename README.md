@@ -1,5 +1,7 @@
 # Chrono Chess MVP
 
+[简体中文](README.zh-CN.md)
+
 An original desktop chess-puzzle prototype built with Godot 4.7.2. It contains
 the first two Chapter 1 puzzles, a deterministic rule engine, and an original
 geometric placeholder presentation. No third-party game assets, copy, levels,
