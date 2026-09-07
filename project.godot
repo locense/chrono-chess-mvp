@@ -1,13 +1,18 @@
-; Chrono Chess MVP - Godot 4.7.2
-; The rule engine is intentionally kept free of scene dependencies.
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
 [application]
 
 config/name="Chrono Chess MVP"
-config/features=PackedStringArray("4.7", "GL Compatibility")
 run/main_scene="res://scenes/app/Main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]
 
@@ -26,4 +31,3 @@ window/stretch/mode="canvas_items"
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/default_filters/use_nearest_mipmap_filter=false
