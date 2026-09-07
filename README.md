@@ -9,9 +9,9 @@ or UI layouts are included.
 
 ## Toolchain
 
-- Godot: `4.7.2.stable`.
-- Local executable used for verification:
-  `F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe`
+- Godot `4.7.2.stable` or a compatible Godot 4.x build.
+- The commands below assume the Godot executable is available as `godot` on
+  your `PATH`. You can also run the project and tests from the Godot editor.
 
 ## Start
 
@@ -20,17 +20,16 @@ Open `project.godot` in Godot 4.7.2 and run the project. The main scene is a
 destinations, `R` for rewind, `Z` for undo, and `Escape` to cancel a rewind
 preview.
 
-From this project directory, the installed GUI executable can also start the
-game directly:
+From this project directory, the game can also be started from a terminal:
 
-```powershell
-& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64.exe' --path .
+```text
+godot --path .
 ```
 
 ## Test
 
-```powershell
-& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script res://tests/TestRunner.gd
+```text
+godot --headless --path . --script res://tests/TestRunner.gd
 ```
 
 ## Windows Export
@@ -40,7 +39,7 @@ matching Godot 4.7.2 export templates, create the output directory, then run:
 
 ```powershell
 New-Item -ItemType Directory -Force build\windows
-& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --export-release 'Windows Desktop' 'build\windows\ChronoChess.exe'
+godot --headless --path . --export-release 'Windows Desktop' 'build\windows\ChronoChess.exe'
 ```
 
 The preset is present in source control. The export itself has not been
@@ -82,6 +81,19 @@ installed.
 Completed levels are stored atomically in Godot's local `user://` storage as
 `chrono_chess_profile.json`. The game keeps the best white-action count for
 each completed Chapter 1 puzzle.
+
+## Project Layout
+
+- `content/levels/`: Chapter 1 JSON puzzle definitions.
+- `scripts/domain/`: stable game-state data objects.
+- `scripts/rules/`: movement, timeline, fate-lock, temporal and world rules.
+- `scripts/ui/` and `scenes/`: the playable desktop interface.
+- `tests/`: deterministic rule and UI regression tests.
+- `assets/placeholder/`: original geometric placeholder art.
+
+Development uses Git checkpoints for each completed module. The public
+repository contains the current source snapshot; future work can add commits
+without changing the existing puzzle rules.
 
 ## Not Yet Implemented
 

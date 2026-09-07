@@ -8,9 +8,9 @@
 
 ## 工具链
 
-- Godot：`4.7.2.stable`
-- 本机验证使用的可执行文件：
-  `F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe`
+- Godot：`4.7.2.stable`，或兼容的 Godot 4.x 版本。
+- 下方命令假设 Godot 已加入系统 `PATH` 并可通过 `godot` 调用；也可以直接
+  在 Godot 编辑器中运行项目和测试。
 
 ## 启动游戏
 
@@ -18,16 +18,16 @@
 1280x720 的桌面谜题界面，支持鼠标选子、合法落点高亮、`R` 回溯、`Z` 撤销，
 以及 `Escape` 取消回溯预览。
 
-也可以在本项目目录内直接使用已安装的图形版 Godot 启动：
+也可以在本项目目录内从终端启动游戏：
 
-```powershell
-& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64.exe' --path .
+```text
+godot --path .
 ```
 
 ## 运行测试
 
-```powershell
-& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --script res://tests/TestRunner.gd
+```text
+godot --headless --path . --script res://tests/TestRunner.gd
 ```
 
 ## Windows 导出
@@ -37,7 +37,7 @@
 
 ```powershell
 New-Item -ItemType Directory -Force build\windows
-& 'F:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' --headless --path . --export-release 'Windows Desktop' 'build\windows\ChronoChess.exe'
+godot --headless --path . --export-release 'Windows Desktop' 'build\windows\ChronoChess.exe'
 ```
 
 导出预设已经纳入版本控制。本机尚未安装 Godot 4.7.2 的 Windows 导出模板，
@@ -71,6 +71,18 @@ New-Item -ItemType Directory -Force build\windows
 
 完成关卡后，进度会原子写入 Godot 的本地 `user://` 存储，文件名为
 `chrono_chess_profile.json`。游戏会为每个已完成的第一章谜题保存最少白方行动数。
+
+## 项目结构
+
+- `content/levels/`：第一章 JSON 谜题定义。
+- `scripts/domain/`：稳定的游戏状态数据对象。
+- `scripts/rules/`：走法、时间线、命运锁、时序和世界规则。
+- `scripts/ui/` 与 `scenes/`：可玩的桌面界面。
+- `tests/`：确定性的规则和 UI 回归测试。
+- `assets/placeholder/`：原创几何占位美术。
+
+开发过程按模块使用 Git 检查点。公开仓库保存当前源码快照，后续可以直接
+继续提交新版本，不改变已有谜题规则。
 
 ## 尚未实现
 
