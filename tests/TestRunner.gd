@@ -5,12 +5,18 @@ const GameReducerRef = preload("res://scripts/rules/GameReducer.gd")
 const WorldResolverRef = preload("res://scripts/rules/WorldResolver.gd")
 const BoardCoordsRef = preload("res://scripts/domain/BoardCoords.gd")
 const StateHasherRef = preload("res://scripts/rules/StateHasher.gd")
+const GameSessionRef = preload("res://scripts/autoload/GameSession.gd")
+const SaveServiceRef = preload("res://scripts/persistence/SaveService.gd")
 
 var _passed := 0
 var _failed := 0
 
 
 func _init() -> void:
+	call_deferred("_run_all")
+
+
+func _run_all() -> void:
 	_run("test_level_data_contract", Callable(self, "test_level_data_contract"))
 	_run("test_level_01_load_and_rewind", Callable(self, "test_level_01_load_and_rewind"))
 	_run("test_level_01_solution_wins", Callable(self, "test_level_01_solution_wins"))
@@ -26,6 +32,8 @@ func _init() -> void:
 	_run("test_temporal_allied_king_overlap_is_rejected", Callable(self, "test_temporal_allied_king_overlap_is_rejected"))
 	_run("test_temporal_capture_removes_projection_without_fate_lock", Callable(self, "test_temporal_capture_removes_projection_without_fate_lock"))
 	_run("test_overlap_releases_after_fate_echo_vanishes", Callable(self, "test_overlap_releases_after_fate_echo_vanishes"))
+	_run("test_undo_restores_confirmed_rewind", Callable(self, "test_undo_restores_confirmed_rewind"))
+	_run("test_profile_save_round_trip", Callable(self, "test_profile_save_round_trip"))
 	print("TEST SUMMARY: %d passed, %d failed" % [_passed, _failed])
 	quit(0 if _failed == 0 else 1)
 
@@ -360,3 +368,51 @@ func _piece(piece_id: String, side: StringName, role: StringName, square: String
 	piece.square = BoardCoordsRef.from_algebraic(square)
 	piece.is_temporal = is_temporal
 	return piece
+
+
+func test_undo_restores_confirmed_rewind() -> String:
+	var session = GameSessionRef.new()
+	var started: Dictionary = session.start_level("chapter_01_level_01")
+	if not bool(started["ok"]):
+		return "session could not start level one"
+	var rewound: Dictionary = session.request_rewind(0)
+	if not bool(rewound["ok"]) or not session.can_undo():
+		return "confirmed rewind must become undoable"
+	var undone: Dictionary = session.undo()
+	if not bool(undone["ok"]):
+		return "undo unexpectedly failed"
+	if session.state.focus_turn != 2 or session.state.chronal_energy != 1 or session.state.current_events.size() != 2:
+		return "undo must restore the complete pre-rewind state"
+	if session.can_undo():
+		return "undo stack should be empty after restoring its only memento"
+	session.free()
+	return ""
+
+
+func test_profile_save_round_trip() -> String:
+	var service = SaveServiceRef.new()
+	var profile_path := "user://chrono_chess_test_profile.json"
+	var temporary_path := "user://chrono_chess_test_profile.tmp"
+	var backup_path := "user://chrono_chess_test_profile.bak"
+	service.configure_paths(profile_path, temporary_path, backup_path)
+	_remove_if_present(profile_path)
+	_remove_if_present(temporary_path)
+	_remove_if_present(backup_path)
+	var saved: Dictionary = service.mark_level_complete("chapter_01_level_02", 2)
+	if not bool(saved["ok"]):
+		return "profile save failed: %s" % str(saved["error"])
+	var loaded := service.load_profile()
+	if not loaded["completed_level_ids"].has("chapter_01_level_02"):
+		return "saved completed level was not restored"
+	if int(loaded["best_white_actions"].get("chapter_01_level_02", 0)) != 2:
+		return "saved best action count was not restored"
+	_remove_if_present(profile_path)
+	_remove_if_present(temporary_path)
+	_remove_if_present(backup_path)
+	service.free()
+	return ""
+
+
+func _remove_if_present(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)

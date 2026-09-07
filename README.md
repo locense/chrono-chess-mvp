@@ -38,7 +38,10 @@ added in the UI checkpoint.
 - Reality overlaps that freeze ordinary pieces and reject normal entry.
 - Temporal annihilation against an enemy king, allied-king rejection, and
   temporal capture removal tests.
+- Session-level undo for confirmed moves and rewinds, using deep state copies.
+- Atomic local completion profile writes with validated temporary files and a
+  backup fallback.
 
 ## Not Yet Implemented
 
-- Board interaction, timeline UI, undo, saves, and the desktop UI.
+- Board interaction, timeline UI, and the desktop UI.

@@ -8,6 +8,11 @@ config_version=5
 config/name="Chrono Chess MVP"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
+[autoload]
+
+GameSession="*res://scripts/autoload/GameSession.gd"
+SaveService="*res://scripts/persistence/SaveService.gd"
+
 [display]
 
 window/size/viewport_width=1280
@@ -21,4 +26,3 @@ window/stretch/mode="canvas_items"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/use_nearest_mipmap_filter=false
-
